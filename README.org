@@ -1,0 +1,23 @@
+#+TITLE:elspeak
+#+AUTHOR:Jordan Wilson
+#+EMAIL: jordan.t.wilson@gmx.com
+
+A simple Emacs package to have regions spoken aloud by ~espeak~. This is NOT an
+accessibility package; I wrote it primarily to avoid tired eyes after reading
+long news articles.
+
+The package does some preprocessing of the string it passes to ~espeak~. It will
+replace raw URLs with their domain. I almost never want a full URL
+read out -- it's meaningless.
+
+The main commands are `elspeak-speak-region' and `elspeak-gnus-article'.
+
+** Configuration
+- If your ~espeak~ is not in your $PATH, you can change the location used:
+#+BEGIN_SRC emacs-lisp
+(setq elspeak-executable "/location/to/espeak")
+#+END_SRC
+- You can change the default speed that ~espeak~ will speak at:
+#+BEGIN_SRC emacs-lisp
+(setq elspeak-default-speed 150)
+#+END_SRC 
