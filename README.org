@@ -10,7 +10,8 @@ The package does some preprocessing of the string it passes to ~espeak~. It will
 replace raw URLs with their domain. I almost never want a full URL
 read out -- it's meaningless.
 
-The main commands are `elspeak-speak-region' and `elspeak-gnus-article'.
+The package's main functions are `elspeak-speak-region' and (if you're a Gnus
+user like me) `elspeak-gnus-article'.
 
 ** Configuration
 - If your ~espeak~ is not in your $PATH, you can change the location used:
