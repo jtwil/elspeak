@@ -1,6 +1,6 @@
 ;;; elspeak.el --- call espeak on a region in a buffer
 
-;; Copyright (C) 2019 by Jordan Wilson
+;; Copyright (C) 2019-2024 by Jordan Wilson
 
 ;; Author: Jordan Wilson <jordan.t.wilson@gmx.com>
 ;; Keywords: speech, text-to-speech
@@ -26,7 +26,7 @@
 ;; accessibility package; I wrote it primarily to avoid tired eyes after reading
 ;; long news articles.
 
-;; The main commands are `elspeak-speak-region' and `elspeak-gnus-article'.
+;; The main commands are `elspeak-speak-region' and `elspeak-speak-buffer'.
 
 ;;; Code:
 
@@ -46,6 +46,14 @@ region and scroll that line to the top of the window.")
 
 (defconst elspeak-process-name "emacs-espeak"
   "Name of elspeak's espeak process.")
+
+(defvar elspeak-speak-buffer-mode-funcs
+  '((gnus-article-mode . elspeak-speak-buffer-gnus-article)
+    (pdf-view-mode . elspeak-speak-buffer-pdf-view)
+    (Info-mode . elspeak-speak-buffer-info))
+  "Associated list for mode specific functions to perform the heavy-lifting for
+`elspeak-speak-buffer'. The `car' of each is the mode, and the `cdr' the
+associated function.")
 
 (defun elspeak-get-process ()
   "Get the current espeak process."
@@ -133,6 +141,23 @@ speaks the current region instead."
     (setq string (replace-regexp-in-string www-regexp "" string)))
   (concat "Link removed: " string))
 
+(defun elspeak-speak-buffer (&optional speed override)
+  "Speak the contents of the current buffer. By default this simply passes the
+text between the minimum and maximum points to `elspeak-speak-region'. If the
+current mode is defined in the variable `elspeak-speak-buffer-mode-funcs', the
+associated function is called instead. If the optional argument OVERRIDE is
+non-nil, that variable is ignored and the default behaviour used.
+
+If the optional argument SPEED is non-nil, espeak will speak at this speed,
+otherwise it will use the value of `elspeak-default-speed'."
+  (interactive (list (if (integerp current-prefix-arg)
+			 (prefix-numeric-value current-prefix-arg)
+		       nil)))
+  (let ((func (assoc major-mode elspeak-speak-buffer-mode-funcs)))
+    (if (and func (not override))
+	(funcall (cdr func) speed)
+      (elspeak-speak-region (point-min) (point-max) speed))))
+
 (defun elspeak-kill (&optional noerr)
   "Kill the espeak process with SIGKILL."
   (interactive)
@@ -166,13 +191,13 @@ speaks the current region instead."
 	     ((eq status 'run)
 	      (elspeak-pause))))))
 
-;; mode specific functions
+;; Mode specific functions used by `elspeak-speak-buffer'
 
-(defun elspeak-gnus-article (&optional speed)
-  "Send just the article text to `elspeak-speak-region'.
-This avoids espeak speaking the article headers, and trailing \"URL:\" left by
-mail programs such as rss2email."
-  (interactive)
+(defun elspeak-speak-buffer-gnus-article (&optional speed)
+  "Implementation of `elspeak-speak-buffer' for gnus-article mode.  This cuts
+out article headers and trailing lines starting \"URL:\" left by mail programs
+such as rss2email. Optional argument SPEED is the same as in
+`elspeak-speak-buffer'."
   (unless (eq major-mode 'gnus-article-mode)
     (user-error "Not a Gnus article buffer"))
   (let (beg end)
@@ -186,6 +211,34 @@ mail programs such as rss2email."
       (setq beg (region-beginning)
 	    end (region-end)))
     (elspeak-speak-region beg end speed)))
+
+(defun elspeak-speak-buffer-info (&optional speed)
+  "Implementation of `elspeak-speak-buffer' for Info-mode. This skips over the
+header line at the top of an info buffer. Optional argument SPEED is the same as
+in `elspeak-speak-buffer'."
+  (when (not (eq major-mode 'Info-mode))
+    (user-error "Not in a Info buffer"))
+  (let (beg end)
+    (save-mark-and-excursion
+      (goto-char (point-min))
+      (set-mark (progn (search-forward-regexp "^\\([[:space:]]\\|$\\)$")
+		       (forward-line) (point)))
+      (goto-char (point-max))
+      (setq beg (region-beginning)
+	    end (region-end)))
+    (elspeak-speak-region beg end speed)))
+
+(defun elspeak-speak-buffer-pdf-view (&optional speed)
+  "Implementation of `elspeak-speak-buffer' for pdf-view-mode. This speaks the
+whole page text. Optional argument SPEED is the same as in
+`elspeak-speak-buffer'."
+  (unless (eq major-mode 'pdf-view-mode)
+    (user-error "Not a PDF-View buffer"))
+  (elspeak-speak-string (pdf-info-gettext (pdf-view-current-page)
+					  '(0 0 1 1))
+			speed))
+
+;; Mode specific functions to extract strings
 
 (defun elspeak-speak-pdf-view-region (&optional speed)
   "Send the `pdf-view' region selected to `elspeak-speak-string'. See that
