@@ -91,8 +91,8 @@ start this one?" elspeak-process-name))
 indicating the stretch of text to be spoken. If the optional argument SPEED is
 non-nil, espeak will speak at this speed, otherwise it will use the value of
 `elspeak-default-speed'.  If the function is called interactively or the
-optional argument REGION is non-nil, the function ignores BEG and END, and speaks
-the current region instead."
+optional argument REGION is non-nil, the function ignores BEG and END, and
+speaks the current region instead."
   (interactive (append (if (use-region-p)
 			   (list (region-beginning) (region-end))
 			 (user-error "No active region is set"))
@@ -142,8 +142,9 @@ the current region instead."
     (delete-process (elspeak-get-process))
     (message "%s killed" elspeak-process-name)))
 
-;; MS-Windows doesn't have the SIGSTOP or SIGCONT process signals
-(unless (eq system-type 'windows-nt)
+;; Non-Unix OSes don't have the SIGSTOP or SIGCONT process signals, so
+;; don't define their entry functions on them
+(unless (member system-type '(windows-nt ms-dos))
   (defun elspeak-pause ()
     "Pause the espeak process with SIGSTOP."
     (elspeak--maybe-no-process)
@@ -178,8 +179,8 @@ mail programs such as rss2email."
     (save-mark-and-excursion
       (goto-char (point-min))
       (set-mark (progn (search-forward-regexp "^\\([[:space:]]\\|$\\)$")
-		       (next-line) (point)))
-      (end-of-buffer)
+		       (forward-line) (point)))
+      (goto-char (point-max))
       ;; if there's a URL line at the end, don't speak it
       (search-backward-regexp "\\(URL\:\\)" nil t)
       (setq beg (region-beginning)
